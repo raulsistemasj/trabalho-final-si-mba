@@ -1,10 +1,10 @@
 const fs = require('fs')
-const privateKey  = fs.readFileSync('./certificado-digital/selfsigned.key', 'utf8');
-const certificate = fs.readFileSync('./certificado-digital/selfsigned.crt', 'utf8');
-const credentials = {key: privateKey, cert: certificate};
 const https = require('https');
-var RateLimit = require('express-rate-limit');
-const { auth, requiredScopes } = require('express-oauth2-jwt-bearer');
+
+const privateKey  = fs.readFileSync('./sslcert/selfsigned.key', 'utf8');
+const certificate = fs.readFileSync('./sslcert/selfsigned.crt', 'utf8');
+
+const credentials = {key: privateKey, cert: certificate};
 
 const express = require('express') 
 const app = express()
@@ -15,11 +15,7 @@ const db = require("./db");
 var cookieParser = require('cookie-parser'); 
 const bodyParser = require('body-parser');
 
-const checkScopes = requiredScopes('openid');
-const checkJwt = auth({
-   audience: 'http://localhost:4200', // Chamadores habilitados
-   issuerBaseURL: `https://dev-967p-ca5.us.auth0.com`,
-});
+var RateLimit = require('express-rate-limit');
 
 var limiter = new RateLimit({
     windowMs: 15*60*1000,
@@ -28,25 +24,17 @@ var limiter = new RateLimit({
     message: "Too many accounts created from this IP, please try again after an hour"
 });
 
-app.use(function(req, res, next) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, authorization');
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    next();
- });
-
 app.use(bodyParser.urlencoded({ extended: true })); 
 app.use(bodyParser.json());
 app.use(cookieParser()); 
 app.use(limiter);
 
-app.get('/products', checkJwt, checkScopes, async (req, res, next) => { 
+app.get('/products', async (req, res, next) => { 
     var resp = await db.getAllProducts();
     res.status(200).json(resp);
 });
 
-app.post('/products', checkJwt, checkScopes, async (req, res, next) => { 
+app.post('/products', async (req, res, next) => { 
 
     try{
         var name = req.body.name;
@@ -61,7 +49,7 @@ app.post('/products', checkJwt, checkScopes, async (req, res, next) => {
     }
 });
 
-app.get('/products/:id', checkJwt, checkScopes, async (req, res, next) => { 
+app.get('/products/:id', async (req, res, next) => { 
 
     try{
         var id = req.params.id;
@@ -75,7 +63,7 @@ app.get('/products/:id', checkJwt, checkScopes, async (req, res, next) => {
     }
 });
 
-app.put('/products/:id', checkJwt, checkScopes, async (req, res, next) => { 
+app.put('/products/:id', async (req, res, next) => { 
 
     try{
         var id = req.params.id;
@@ -94,7 +82,7 @@ app.put('/products/:id', checkJwt, checkScopes, async (req, res, next) => {
     }
 });
 
-app.delete('/products/:id', checkJwt, checkScopes, async (req, res, next) => {
+app.delete('/products/:id', async (req, res, next) => {
 
     try{
         var id = req.params.id;
@@ -106,8 +94,13 @@ app.delete('/products/:id', checkJwt, checkScopes, async (req, res, next) => {
     }
 });
 
-var httpsServer = https.createServer(credentials, app);
+const httpsServer = https.createServer(credentials, app);
 
 httpsServer.listen(port, () => {
     console.log(`Listening at http://localhost:${port}`)
 });
+/*
+app.listen(port, () => {
+    console.log(`Listening at http://localhost:${port}`)
+});
+*/
